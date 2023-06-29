@@ -1,0 +1,2 @@
+# LazyAlienWS
+LazyALienWS，一个基于websocket的LAS多端互通基础python库
