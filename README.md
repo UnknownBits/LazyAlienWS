@@ -2,6 +2,16 @@
 
 LazyALienWS，一个基于websocket的LAS多端互通基础python库
 
+**使用说明：**
+
+将lazyalienws作为python库安装，或直接将lazyalienws文件夹拖到python环境目录下
+
+新建一个文件夹作为ws服务端运行目录，打开命令窗口输入python -m lazyalienws，将会自动创建目录。其中/plugins即为插件目录。
+
+修改conf.json后再次使用python -m lazyalienws启动即可
+
+将mcdreforged下的文件拖到mcdr的plugins目录下，并修改配置文件。其中_vc版本为velocity端mcdr插件
+
 ---
 
 ## 实现功能：
