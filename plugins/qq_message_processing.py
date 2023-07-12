@@ -3,11 +3,7 @@ from typing import Any
 from lazyalienws.server.lib.exception import raise_exception
 
 def fix_cq(string, to_str=False): # /@ -> CQ:at,qq= ; /! -> CQ:reply,id=
-    for i in [i.split(')')[0] for i in string.split("(@") if ")" in i]:
-        string = string.replace(f"(@{i})",f"[CQ:at,qq={i}]")
-    for i in [i.split(')')[0] for i in string.split("(!") if ")" in i]:
-        string = string.replace(f"(!{i})",f"[CQ:reply,id={i}]")
-    return string
+    return re.sub(r"\(!(-?[0-9]+?)\)","[CQ:reply,id=\g<1>]",re.sub(r"\(@([0-9]+?)\)","[CQ:at,qq=\g<1>]",string))
 
 class CQprocessing:
 
