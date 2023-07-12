@@ -45,6 +45,8 @@ LazyALienWS，一个基于websocket的LAS多端互通基础python库
 
 **#在线玩家：** 在获取在线玩家时，同时获取team bot内的假人列表，区分开玩家和假人
 
+---
+
 ### #mspt #tps 查询
 
 效果：
@@ -52,6 +54,8 @@ LazyALienWS，一个基于websocket的LAS多端互通基础python库
 <img src="https://docimg7.docs.qq.com/image/AgAABa2v9CWDgmsFr5RN3YuG-Le5l7u8.webp?w=690&h=618">
 
 *#mspt查询服务端tps和mspt，#tps同理*
+
+---
 
 ### #签到
 
