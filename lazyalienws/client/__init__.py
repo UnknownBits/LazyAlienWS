@@ -3,6 +3,28 @@ from mcdreforged.api.types import ServerInterface
 import websocket
 import time, threading
 
+class MCDR_velocity_plugin:
+
+    def __init__(self, server:ServerInterface, url:str, client_name:str) -> None:
+        if client_name == None:
+            server.logger.info("Change the client name in config.")
+            server.say(r"§e[LAS-plugin-WebsocketVer.] §c终止§f: §4必须在配置文件中设置客户端名称")
+        else:
+            server.logger.info(server)
+            try:
+                self.ws = MCDR_WebSocketClient(server, url, client_name)
+                self.ws.start()
+            except Exception as e:
+                server.logger.warn(e)
+    
+    def on_info(self, server, info):
+        content = info.content
+        if content[:3] in ["[+]","[-]"]:
+            self.ws.send_message(content[4:])
+    
+    def on_unload(self, server):
+        self.ws.end()
+
 class MCDR_plugin:
 
     def __init__(self, server:ServerInterface, url:str, client_name:str) -> None:
@@ -36,20 +58,25 @@ class MCDR_plugin:
         server.logger.info(f'player:{player}, ip:{ip}, action:logged')
         if ip == "[local]":
             self.ws.send_message("[BOT]%s 加入了游戏"%player)
+            server.execute("execute as %s run team join bot"%player)
         else:
-            self.ws.send_message("%s 加入了游戏"%player)
+            # self.ws.send_message("%s 加入了游戏"%player)
             self.ws.send_command(player, "#LAS")
         
         if player[0] in "Bb" and player[1] in "Oo" and player[2] in "Tt" and player[3] == "_" and ip != "[local]":
             server.execute("kick %s DO NOT user nickname with the '%s' prefix"%(player,player[:4]))
     
     def on_player_left(self, server, player):
-        self.ws.send_message("%s 退出了游戏"%player)
+        # self.ws.send_message("%s 退出了游戏"%player)
+        pass
     
     def on_unload(self, server):
         self.ws.end()
     
     def on_server_startup(self, server):
+        server.execute("team add bot")
+        server.execute('team modify bot prefix {"text":"[BOT]","color":"aqua"}')
+        server.execute('team modify bot displayName {"text":"bot"}')
         self.ws.send_message('Server Started')
 
     def on_server_stop(self, server, server_return_code):
