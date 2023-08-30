@@ -12,6 +12,12 @@ LazyALienWS，一个基于websocket的LAS多端互通基础python库
 
 将mcdreforged下的文件拖到mcdr的plugins目录下，并修改配置文件。其中_vc版本为velocity端mcdr插件
 
+**目录说明**
+
+`/lazyalienws` LazyAlienWS库的根目录
+
+`/plugins` LazyAlienWS服务端实际运行目录下的插件
+
 ---
 
 ## 实现功能：
