@@ -72,3 +72,8 @@ LazyALienWS，一个基于websocket的LAS多端互通基础python库
 
 ![example](lazyalienws-img/MOTD.jpg)
 
+### 更好的共享坐标点
+
+效果
+
+![waypoints](lazyalienws-img/waypoints.jpg)
