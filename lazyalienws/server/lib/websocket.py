@@ -1,7 +1,7 @@
 import time, random
 from websocket_server import WebsocketServer
 
-class API(WebsocketServer):
+class WebsocketInterface(WebsocketServer):
     
     # Message字符串格式化classmethod
     def message(self, message: str) -> classmethod | None:
@@ -25,30 +25,37 @@ class API(WebsocketServer):
             return str({"client":msg[0], "action":msg[1], "value":msg[2]})
         else:
             return msg
+        
     def send_message(self, client, msg: object|tuple):
         'msg: object|tuple / msg tuple:(client,action,value)'
         if client == "QQ" and self.QQclient:
             self.QQclient.send_group_msg(f"[{msg[0]}] {msg[2]}")
         else:
             super().send_message(client, self.create_message(msg))
+
     def send_message_to_all(self, msg):
         'msg: object|tuple / msg tuple:(client,action,value)'
         super().send_message_to_all(self.create_message(msg))
         if self.QQclient:
             self.QQclient.send_group_msg(f"[{msg[0]}] {msg[2]}")
+            
     def send_message_to_all_except(self, client, msg):
         'msg: object|tuple / msg tuple:(client,action,value)'
-        if client == "QQ":
+        if type(client) != list:
+            client = [client]
+        if client == ["QQ"]:
             super().send_message_to_all(self.create_message(msg))
         else:
-            if self.QQclient:
+            if self.QQclient and "QQ" not in client:
                 self.QQclient.send_group_msg(f"[{msg[0]}] {msg[2]}")
             for i in self.clients:
-                if i != client:
+                if i not in client:
                     self.send_message(i, msg)
+
     
     # 请求发送
     def create_request(self, client, action:str="execute", value=None, keyword=None, timeout=10):
+        'Create a request to the client, and return its response. If timeout, return None.'
         t = time.time()
         id = int(sum(bytes(client["name"], encoding="utf-8"))*10e10+t*10e8%10e10)      
         self.logger.debug(f"id: {id}({t})", module_name="Request")

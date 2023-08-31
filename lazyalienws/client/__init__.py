@@ -1,14 +1,15 @@
 from mcdreforged.api.decorator import new_thread
 from mcdreforged.api.types import ServerInterface
-import websocket
-import time, threading
+from lazyalienws.constants.core_constants import NAME
+import websocket, time, threading, re
+from typing import Self
 
 class MCDR_velocity_plugin:
 
     def __init__(self, server:ServerInterface, url:str, client_name:str) -> None:
         if client_name == None:
             server.logger.info("Change the client name in config.")
-            server.say(r"§e[LAS-plugin-WebsocketVer.] §c终止§f: §4必须在配置文件中设置客户端名称")
+            server.say(f"§e[{NAME}] §c终止§f: §4必须在配置文件中设置客户端名称")
         else:
             server.logger.info(server)
             try:
@@ -30,7 +31,7 @@ class MCDR_plugin:
     def __init__(self, server:ServerInterface, url:str, client_name:str) -> None:
         if client_name == None:
             server.logger.info("Change the client name in config.")
-            server.say(r"§e[LAS-plugin-WebsocketVer.] §c终止§f: §4必须在配置文件中设置客户端名称")
+            server.say(f"§e[{NAME}] §c终止§f: §4必须在配置文件中设置客户端名称")
         else:
             server.logger.info(server)
             try:
@@ -51,32 +52,24 @@ class MCDR_plugin:
                 ...
     
     def on_info(self, server, info):
-        self.ws.on_info(info)
+        if not info.is_player:
+            self.ws.on_info(info)
     
     def on_player_joined(self, server, player, info):
-        ip = info.content.replace(player,'').split(' logged in with')[0]
+        re_result = re.match(r"(?:\[\w+\])?\w+\[([local0-9.]+)] logged in", info)
+        if re_result:
+            ip = re_result.groups()[0]
         server.logger.info(f'player:{player}, ip:{ip}, action:logged')
-        if ip == "[local]":
-            self.ws.send_message("[BOT]%s 加入了游戏"%player)
-            server.execute("execute as %s run team join bot"%player)
-        else:
-            # self.ws.send_message("%s 加入了游戏"%player)
+        if ip != "local":
             self.ws.send_command(player, "#LAS")
-        
-        if player[0] in "Bb" and player[1] in "Oo" and player[2] in "Tt" and player[3] == "_" and ip != "[local]":
-            server.execute("kick %s DO NOT user nickname with the '%s' prefix"%(player,player[:4]))
     
     def on_player_left(self, server, player):
-        # self.ws.send_message("%s 退出了游戏"%player)
         pass
     
     def on_unload(self, server):
         self.ws.end()
     
     def on_server_startup(self, server):
-        server.execute("team add bot")
-        server.execute('team modify bot prefix {"text":"[BOT]","color":"aqua"}')
-        server.execute('team modify bot displayName {"text":"bot"}')
         self.ws.send_message('Server Started')
 
     def on_server_stop(self, server, server_return_code):
@@ -84,6 +77,13 @@ class MCDR_plugin:
 
 
 class MCDR_WebSocketClient:
+
+    # 单例
+    _singleton = None
+    def __new__(cls, *args, **kwargs) -> Self:
+        if not cls._singleton:
+            cls._singleton = object.__new__(cls)
+        return cls._singleton
 
     def __init__(self, server, url: str, client_name: str, debug: bool = False) -> None:
         self.url = url
@@ -101,35 +101,36 @@ class MCDR_WebSocketClient:
 
         MESSAGE = {"client": self.client_name, "action": "Connection", "value": "Connected"}
         client.send(str(MESSAGE))
-        self.server.say("§e[LAS-plugin-WebsocketVer.] §aWebsocket连接成功")
+        self.server.say(f"§e[{NAME}] §aWebsocket连接成功")
 
 
     def on_message(self, client, message):
-        # self.logger.info(f"{message}")
         try:
             message = dict(eval(message))
             # self.logger.info(f"[Server/{message['client']}][{message['action']}] {message['value']}")
-            if message["action"] == "Message":
-                self.server.say(f"§7[%s] %s"%(message["client"], message["value"]))
-            elif message["action"] == "Connection":
-                if "Connected"  in message["value"]:
-                    self.server.say("§e[LAS-plugin-WebsocketVer.] §a%s"%message["value"])
-                else:
-                    self.server.say("§e[LAS-plugin-WebsocketVer.] §cWebsocket断开连接: %s"%message["value"])
-            elif message["action"] == "Execute":
-                self.server.execute(message["value"])
-            elif message["action"] == "Request":
-                request = message["value"]
-                if request["action"] == "execute":
-                    try:
-                        self.request_api[request["id"]] = request["keyword"]
-                        f = lambda : ( time.sleep(0.1),self.server.execute(request["value"]) )
-                        t = threading.Thread(target=f)
-                        t.start()
-                    except Exception as e:
-                        self.send_return("Wrong Request: %s"%e)
-                else:
-                    ...
+            match message["action"]:
+                case "Message":
+                    self.server.say(f"§7[%s] %s"%(message["client"], message["value"]))
+                case "Connection":
+                    if "Connected"  in message["value"]:
+                        self.server.say(f"§e[{NAME}] §a%s"%message["value"])
+                    else:
+                        self.server.say(f"§e[{NAME}] §cWebsocket断开连接: %s"%message["value"])
+                case "Execute":
+                    self.server.execute(message["value"])
+                case "Request":
+                    request = message["value"]
+                    if request["action"] == "execute":
+                        try:
+                            self.request_api[request["id"]] = request["keyword"]
+                            self.server.logger.info("received request")
+                            f = lambda : ( time.sleep(0.1),self.server.execute(request["value"]) )
+                            t = threading.Thread(target=f)
+                            t.start()
+                        except Exception as e:
+                            self.send_return("Wrong Request: %s"%e)
+                    else:
+                        ...
         except Exception as e:
             self.logger.info(f"[WARN] Wrong MESSAGE format: {message} / {e}")
 
@@ -137,7 +138,7 @@ class MCDR_WebSocketClient:
     def on_close(self, client, close_status_code, close_msg):
         if self.is_running:
             self.logger.info("Disconnected")
-            time.sleep(5)
+            time.sleep(10)
             self.server.logger.info("Reconnecting...")
             self.start()
 
@@ -145,10 +146,9 @@ class MCDR_WebSocketClient:
         if not info.is_user:
             info = info.content
             for keyword,id in zip([self.request_api[i] for i in self.request_api], list(self.request_api.keys())):
-                if keyword in info:
-                    if keyword in info:
-                        self.send_return(id, info)
-                        self.request_api.pop(id)
+                if re.match(keyword, info):
+                    self.send_return(id, info)
+                    self.request_api.pop(id)
                 
 
     def send_message(self, message: str):
@@ -160,7 +160,7 @@ class MCDR_WebSocketClient:
     def send_return(self, id, value):
         self.ws.send(str({"client": self.client_name, "action": "Return", "value":{"id":id, "value":value}}))
 
-    @new_thread("LAS WebSocketClient")
+    @new_thread("lazyalienws_client")
     def start(self):
 
         if self.debug:
@@ -178,7 +178,7 @@ class MCDR_WebSocketClient:
             self.is_running = False
             MESSAGE = str({"client": self.client_name, "action": "Connection", "value": "Client Closed"})
             self.ws.send(MESSAGE)
-            self.server.say("§e[LAS-plugin-WebsocketVer.] §cWebsocket断开连接: Client closed")
+            self.server.say(f"§e[{NAME}] §cWebsocket断开连接: Client closed")
             self.ws.close()
         except Exception as e:
             self.logger.info(e)

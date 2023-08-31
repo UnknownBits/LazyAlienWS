@@ -1,6 +1,6 @@
 import json
 
-class MCDR_API:
+class MCDRInterface:
 
     def say(self, string):
         if type(string) not in [dict,list]:
@@ -8,8 +8,11 @@ class MCDR_API:
         string = json.dumps(string)
         self.send_message_to_all_except("QQ",("Server","Execute","tellraw @a "+string))
     
-    def execute(self, string):
-        self.send_message_to_all_except("QQ",("Server","Execute",string))
+    def execute(self, string, client=None):
+        if client:
+            self.send_message(client,("Server","Execute",string))
+        else:
+            self.send_message_to_all_except("QQ",("Server","Execute",string))
     
     def reply(self, client, player, string):
         if type(string) not in [dict,list]:

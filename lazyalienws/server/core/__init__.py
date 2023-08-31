@@ -13,21 +13,25 @@ def makedirs(path: list):
             os.makedirs(p)
 
 def start():
+    print("PATH : %s"%(os.getcwd()))
+
+    makedirs(["plugins","data","conf"])
+
+    conf = Config("conf.json",default_data=DEFAULT_CONF,filepath="").load()
+    conf_server = conf["websocket"]
+    conf_qq = conf["QQclient"]
+
+    server = _websocket_server.LASWebsocketServer(host=conf_server["host"])
+    if conf_qq["active"]:
+        QQclient = _websocket_qq_client.QQWebSocketClient(url=conf_qq["cqhttp"], server=server, qq_groups=conf_qq["groups"], admin=conf_qq["admin"])
+
     print("server will start in %ssec"%INTERVAL_TIME)
-    time.sleep(INTERVAL_TIME)
+    try:
+        time.sleep(INTERVAL_TIME)
+    except KeyboardInterrupt:
+        print("Interrupted.")
+        return
     if conf_qq["active"]:
         server.QQclient = QQclient
         QQclient.start()
     server.start()
-
-print("PATH : %s"%(os.getcwd()))
-
-makedirs(["plugins","data","conf"])
-
-conf = Config("conf.json",default_data=DEFAULT_CONF,filepath="").load()
-conf_server = conf["websocket"]
-conf_qq = conf["QQclient"]
-
-server = _websocket_server.LASWebsocketServer(host=conf_server["host"])
-if conf_qq["active"]:
-    QQclient = _websocket_qq_client.QQWebSocketClient(url=conf_qq["cqhttp"], server=server, qq_groups=conf_qq["groups"], admin=conf_qq["admin"])

@@ -1,6 +1,7 @@
+from lazyalienws.cli import cmd
+from lazyalienws.constants.core_constants import VERSION as version
+
+__path__ = ["api","client","server","constants"]
+
 if __name__ == '__main__':
-    from lazyalienws.__version__ import __version__
-    print(__version__)
-    
-    from lazyalienws.server import core
-    core.start()
+    cmd()

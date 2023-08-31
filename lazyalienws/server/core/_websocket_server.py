@@ -1,20 +1,33 @@
-from websocket_server import WebsocketServer
 import logging, threading, time
 from lazyalienws.server.logger import Logger
 from lazyalienws.server.plugin import Plugins
-from lazyalienws.server.lib.websocket import API
-from lazyalienws.server.lib.mcdr import MCDR_API
+from lazyalienws.server.lib.websocket import WebsocketInterface
+from lazyalienws.server.lib.mcdr import MCDRInterface
+from lazyalienws.server.lib.help_message import HelpMessageMinecraft
+from lazyalienws.server.core._websocket_qq_client import QQWebSocketClient
+from typing import *
 
 
-# LASWebsocketServer 继承自API&websocket_server.WebsocketServer
-class LASWebsocketServer(API, MCDR_API):
+# LASWebsocketServer 继承自API&websocket_server.WebsocketServer 且为单例
+class LASWebsocketServer(WebsocketInterface, MCDRInterface):
+
+    # 单例
+    _singleton = None
+    def __new__(cls, *args, **kwargs) -> Self:
+        if not cls._singleton:
+            cls._singleton = object.__new__(cls)
+        return cls._singleton
 
     # __init__ 初始化WebsocketServer&logger
     def __init__(self, host='127.0.0.1', port=5800, loglevel=logging.WARNING, key=None, cert=None):
+        if hasattr(self, "id"):
+            return
         super().__init__(host, port, loglevel, key, cert)
-        self.QQclient = None
-        self.request_api = {}
+        self.id = time.time()
+        self.QQclient : QQWebSocketClient = None
+        self.request_api : dict = {}
         self.logger = Logger("WSserver")
+        self.help_message = HelpMessageMinecraft()
         self.plugins = Plugins() # 加载plugin
         self.logger.info(", ".join(self.plugins.mixin_dictionary), module_name="Plugins")
         self.logger.info(", ".join(self.plugins.list()), module_name="Plugins")
@@ -60,44 +73,45 @@ class LASWebsocketServer(API, MCDR_API):
             
             else:
                 info = f"CLIENT-{client['id']}/{message.client} {message.action} : {message.value}"
-                self.logger.info(info, module_name="Message")
+                self.logger.debug(info, module_name="Message")
 
                 # 信息类型为Connection
-                if message.action == "Connection":
+                match message.action:
+                    case "Connection":
 
-                    # 初次连接
-                    if message.value == "Connected":
-                        client["name"] = message.client
+                        # 初次连接
+                        if message.value == "Connected":
+                            client["name"] = message.client
 
-                        # 踢出重名client
-                        if client["name"] in [i["name"] for i in self.clients]:
-                            client_name = client["name"]
-                            client_id = client["id"]
-                            for i in self.clients:
-                                if (i["name"] == client_name) and (i["id"] != client_id):
-                                    self.send_message(i, ("Server","Connection","Wrong client-name"))
-                                    self.close_client(i)
-                        
-                        # 广播有client连接了
-                        self.send_message_to_all_except(client, ("Server","Connection","Client-%s/%s Connected"%(client["id"], client["name"])))
+                            # 踢出重名client
+                            if client["name"] in [i["name"] for i in self.clients]:
+                                client_name = client["name"]
+                                client_id = client["id"]
+                                for i in self.clients:
+                                    if (i["name"] == client_name) and (i["id"] != client_id):
+                                        self.send_message(i, ("Server","Connection","Wrong client-name"))
+                                        self.close_client(i)
                     
-                    return 
-                
-                elif message.action == "Message":
-                    self.plugins.on_message(client, self, message)
-                    # self.send_message_to_all_except(client, (client["name"],"Message",message.value))
-                
-                elif message.action == "Command":
-                    try:
-                        content = dict(message.value)
-                        player = content["player"]
-                        command = content["content"]
-                        self.plugins.on_command(client, self, player, command)
-                    except Exception as e:
-                        self.logger.warn(warn=e,module_name="Command")
-                
-                elif message.action == "Return":
-                    self.on_request_message(message)
+                    case "Message":
+                        self.plugins.on_message(client, self, message)
+                    
+                    case "Command":
+                        try:
+                            content = dict(message.value)
+                            player = content["player"]
+                            command = content["content"]
+                            if command == "#":
+                                self.reply(client, player, self.help_message.display())
+                            else:
+                                self.plugins.on_command(client, self, player, command)
+                        except Exception as e:
+                            self.logger.warn(warn=e,module_name="Command")
+                    
+                    case "Return":
+                        self.on_request_message(message)
+                    
+                    case _:
+                        server.logger.warn(warn=AttributeError("Unknown message action."))
         
         except Exception as e:
             self.logger.warn(warn=e, module_name="Message")
