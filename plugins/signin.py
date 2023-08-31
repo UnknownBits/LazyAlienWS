@@ -1,5 +1,6 @@
 import datetime, copy
 from lazyalienws.api.data import Data
+from lazyalienws.api.typing import WebsocketServerInstance
 
 class SignInData(Data):
 
@@ -17,10 +18,11 @@ class SignInData(Data):
 
 class SignIn:
 
-    def __init__(self, server) -> None:
+    def __init__(self, server: WebsocketServerInstance) -> None:
         
         self.file = SignInData("sign_in.json",default_data=[])
         self.data = self.file.load()
+        server.help_message.register("#签到","每日签到")
 
         try:
             self.latest_dayinfo_update_date = max([value["latest_signin_time"] for value in self.data]).date()

@@ -1,8 +1,9 @@
 import re, json
 from typing import Any
 from lazyalienws.server.lib.exception import raise_exception
+from lazyalienws.api.data import Data
 
-def fix_cq(string, to_str=False): # /@ -> CQ:at,qq= ; /! -> CQ:reply,id=
+def fix_cq(string): # /@ -> CQ:at,qq= ; /! -> CQ:reply,id=
     return re.sub(r"\(!(-?[0-9]+?)\)","[CQ:reply,id=\g<1>]",re.sub(r"\(@([0-9]+?)\)","[CQ:at,qq=\g<1>]",string))
 
 class CQprocessing:
@@ -34,14 +35,18 @@ class CQprocessing:
             cq_info = self.get_cq_info(string)
             match cq_info["CQ"]:
                 case "image":
-                    match cq_info["subType"]:
-                        case "0":
-                            image_type = "[图片]"
-                        case "1":
-                            image_type = "[表情]"
-                        case _:
-                            image_type = "[图片]"
-                            raise_exception(RuntimeError(f"Unknown subType: {cq_info['subType']}"))
+                    if "subType" in cq_info.keys():
+                        match cq_info["subType"]:
+                            case "0":
+                                image_type = "[图片]"
+                            case "1":
+                                image_type = "[表情]"
+                            case _:
+                                image_type = "[图片]"
+                                raise_exception(RuntimeError(f"Unknown subType: {cq_info['subType']}"))
+                    else:
+                        image_type="[图片]"
+                        QQclient.logger.info("image info had no key 'subType': {}".format(cq_info))
                     msg = [{"text":"§2§n%s§r"%image_type,
                             "clickEvent":{"action":"open_url","value":cq_info["url"]},
                             "hoverEvent":{"action":"show_text","value":{"text":"§a%s\n§7§o单击以在网页查看"%image_type}}}]
@@ -86,11 +91,20 @@ class CQprocessing:
         message_content = message["message"]
         QQclient = self.QQclient
         
-        sender = message["sender"] # 获取sender_name发送者昵称
+        sender = message["sender"] # 获取sender
         if "user_id" in sender.keys() and sender["user_id"] == QQclient.uin and is_reply_msg:
             sender_name = None
         else:
-            if "card" not in sender.keys() and "user_id" in sender.keys():
+            # users=Data("user_data.json").load()
+            # ind=[i["qq_id"] for i in users].index(sender)
+            # if not users[ind]["nickname"]=="":
+            #     sender = {"card":users[ind]["nickname"]}
+            #     sender = {"card":"The nickname you want to replace"}
+            if False:
+                ...
+            elif "card" in sender.keys():
+                ...
+            elif "user_id" in sender.keys():
                 sender = QQclient.get_group_member_info(message["group_id"],sender["user_id"])["data"]
             else:
                 sender = {"card":"UNKNOWN"}
@@ -107,7 +121,7 @@ class CQprocessing:
                 return content_list
         else:
             QQ_clickReply = {"text":"§8[§d QQ §8]§r","insertion":"(!%s)"%(message["message_id"]),"hoverEvent":{"action":"show_text","value":{"text":"§d回复该消息\n§7§oSHIFT+左键"}}}
-            user_clickAt = {"text":"§f<§7%s§f>§r"%sender_name,"insertion":"(@%s)"%sender["user_id"],"hoverEvent":{"action":"show_text","value":{"text":"§b@%s\n§7§oSHIFT+左键"%sender_name}}}
+            user_clickAt = {"text":"§f<§7%s§f>§r"%sender_name,"insertion":"(@%s)"%(sender["user_id"]),"hoverEvent":{"action":"show_text","value":{"text":"§b@%s\n§7§oSHIFT+左键"%sender_name}}}
             content_list = [{"text":""},QQ_clickReply,{"text":" "},user_clickAt,{"text":" "}] + content_list
             return "tellraw @a %s"%(json.dumps(content_list).replace("&#91;","[").replace("&#93;","]"))
 

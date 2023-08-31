@@ -9,11 +9,11 @@ def JOINmotd(client, server, player):
     signin = server.signin
 
     now_time = datetime.datetime.now()
-    server_days = (now_time - datetime.datetime.strptime('2022-08-29','%Y-%m-%d')).days
+    server_days = (now_time - datetime.datetime.strptime('2023-08-18','%Y-%m-%d')).days
 
     for i in ['',
-                '§7=======§f 欢迎来到 §3§k§lI§r§b§lLazy-Alien-Server§3§k§lI§r§f §7=======',
-                f'今天是§eLAS§c§f开服的第§e§l{server_days}§f天']:
+                '§7=======§f 欢迎来到 §3§k§lI§r§b§lLazy Alien Server§3§k§lI§r§f §7=======',
+                f'今天是§eLAS二周目§c§f开服的第§e§l{server_days+1}§f天']:
         reply(i)
     website = ["§b[官网] §f打开官网 ",{ "text":"<LAS官网>","color":"light_purple","clickEvent":{"action":"open_url","value":"https://lazyalienserver.top"},"hoverEvent":{"action":"show_text","value":{"text":"打开§bLAS官网\n§7lazyalienserver.top"}}}]
     if not signin.is_player_signed_in(player):

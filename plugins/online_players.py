@@ -1,84 +1,81 @@
 from mcstatus import JavaServer
-from lazyalienws.server.core._websocket_qq_client import QQWebSocketClient
+from lazyalienws.api.typing import WebsocketServerInstance, QQServerInstance
 from lazyalienws.server.lib.exception import raise_exception
 from lazyalienws.api.decorator import new_thread
+from lazyalienws.api.data import Config
+from lazyalienws.api.minecraft import get_online_players
 import time
 
-servers = {
-    "Survival": "127.0.0.1:25585",
-    "Creative": "127.0.0.1:25586",
-    "Mirror": "127.0.0.1:25587",
-    "Void": "127.0.0.1:25588"
-}
+transform = Config("conf.json",filepath="").read()["websocket"]["transform"]
 
-def get_online_players(servers: dict, ws_server: QQWebSocketClient):
-    online_players = {}
-    for server in servers.keys():
-        try:
-            mc_server = servers[server].split(":")
-            mc_server = JavaServer(mc_server[0], int(mc_server[1]))
-            players = mc_server.query().players.names
-            # bot = [i for i in players if i[0] in "Bb" and i[1] in "Oo" and i[2] in "Tt" and i[3] == "_"]
-            team_bot = ws_server.create_request(ws_server.get_client(server), value="team list bot", keyword="eam [bot]")
-            if team_bot:
-                if "no members" in team_bot:
-                    bot = []
-                else:
-                    bot = team_bot.split("members:")[1].replace(" ","").split(",")
-            else:
-                bot = []
-            real_players = list(set(players)-set(bot))
-            online_players[server] = {"players":real_players, "bots":bot}
-        except ConnectionResetError:
-            online_players[server] = None
-            pass
-        except Exception as e:
-            online_players[server] = None
-            raise_exception(e)
-            # QQclient.logger.warn(server,warn=e, module_name="onlien-players")
-    return online_players
+def on_start(server: WebsocketServerInstance):
+    server.help_message.register("#在线玩家","获取各服的在线玩家与假人")
 
 @new_thread
-def on_qq_message(QQclient, server, message):
+def on_qq_message(QQclient: QQServerInstance, server: WebsocketServerInstance, message):
     if message["message"] == "#在线玩家":
-        time.sleep(0.1)
-        online_players = get_online_players(servers, server)
-        online_players_info = []
-        for s in online_players:
-            if online_players[s] == None:
-                online_players_info = online_players_info + [f"[{s}] 未运行"]
-            else:
-                players = online_players[s]["players"]
-                bots = online_players[s]["bots"]
-                online_players_info = online_players_info + [f"[{s}] 玩家:{len(players)} 假人:{len(bots)}",
-                                                             "\n".join(["* %s"%i for i in players]),
-                                                             "\n".join(["- %s"%i for i in bots])]
-        online_players_info = "\n".join(online_players_info).replace("\n\n","\n").replace("\n\n","\n")
-        if online_players_info[-1:] == "\n": online_players_info = online_players_info[:-1] # 修复换行问题
-        QQclient.logger.info(online_players_info+"|", module_name="online-players")
-        QQclient.send_msg(online_players_info, message)
+        result = get_online_players(server)
+        display = []
+        for client, players in result.items():
+            if client in transform.keys():
+                client = transform[client]["zh_cn"]
+            if players == [""]:
+                players = []
+            if type(players) == list:
+                real_players = [i for i in players if i[:5] != "[BOT]"]
+                fake_players = [i[5:] for i in list(set(players) - set(real_players))]
+                display.append(f"[{client}] 玩家:{len(real_players)} 假人:{len(fake_players)}")
+                if real_players:
+                    display.append("* "+", ".join(real_players))
+                if fake_players:
+                    display.append("- "+", ".join(fake_players))
+            elif players == None:
+                display.append(f"[{client}] 未响应请求")
+            elif players == False:
+                display.append(f"[{client}] 错误")
+        closed_clients = list(set(transform.keys()) - set(result.keys()))
+        if closed_clients:
+            for client in closed_clients:
+                display.append(f"[{transform[client]['zh_cn']}] 未运行")
+        display = "\n".join(display)
+        
+        server.logger.info(display)
+        QQclient.send_msg(display, message)
+
 
 @new_thread
-def on_command(client, server, player, command):
+def on_command(client, server: WebsocketServerInstance, player, command):
     if command[:5] == "#在线玩家":
         if command == "#在线玩家":
-            online_players = get_online_players(servers, server)
-            online_players_info = []
-            for s in online_players:
-                if online_players[s] == None:
-                    online_players_info = online_players_info + [f"§e[{s}] §c未运行"]
-                else:
-                    players = online_players[s]["players"]
-                    bots = online_players[s]["bots"]
-                    online_players_info = online_players_info + [f"§e[{s}] §b玩家§f:{len(players)} §d假人§f:{len(bots)}§f",
-                                                                "\\n".join(["§f* §b%s"%i for i in players]),
-                                                                "\\n".join(["§f- §d%s"%i for i in bots])]
-            online_players_info = 'tellraw %s {"text":"%s"}'%(player,"\n".join(online_players_info).replace("\n\n","\n").replace("\n\n","\n").replace("\n","\\n"))
-            if online_players_info[-2:] == "\n":
-                online_players_info = online_players_info[:-2]
-                server.logger.info("removed \n")
-            server.logger.info(online_players_info, module_name="online-players")
-            server.send_message(client, ("Server","Execute",online_players_info))
+            _client = client
+            result = get_online_players(server)
+            display = ["§e§l当前在线玩家§r"]
+            for client, players in result.items():
+                if client in transform.keys():
+                    color = transform[client]["color"]
+                    client = transform[client]["zh_cn"]
+                if players == [""]:
+                    players = []
+                if type(players) == list:
+                    real_players = [i for i in players if i[:5] != "[BOT]"]
+                    fake_players = [i[5:] for i in list(set(players) - set(real_players))]
+                    display.append(f"§8[§{color}{client}§8]§r §f玩家:§b{len(real_players)}§r §f假人:§7{len(fake_players)}§r")
+                    if real_players:
+                        display.append("* "+"§7,§r ".join(real_players))
+                    if fake_players:
+                        display.append("§7- "+", ".join(fake_players))
+                elif players == None:
+                    display.append(f"§8[§{color}{client}§8]§r §c未响应请求")
+                elif players == False:
+                    display.append(f"§8[§{color}{client}§8]§r §c错误")
+            closed_clients = list(set(transform.keys()) - set(result.keys()))
+            if closed_clients:
+                for client in closed_clients:
+                    color = transform[client]["color"]
+                    client = transform[client]["zh_cn"]
+                    display.append(f"§8[§{color}{client}§8]§r §c未运行")
+            display = "\n".join(display)
+            server.reply(_client, "@a", display)
         else:
             server.logger.info("'#在线玩家' 没有需要的参数", module_name="online-players")
             server.send_message(client, ("Server","Execute", "tellraw %s '#在线玩家' 没有需要的参数"))

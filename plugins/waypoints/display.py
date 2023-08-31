@@ -37,7 +37,11 @@ HELP = {
             {"text":" "},
             {"text":"[…]","color":"white",
                 "clickEvent":{"action":"run_command","value":"#wp list"},
-                "hoverEvent":{"action":"show_text","value":{"text":"列出所有共享中的坐标点\n§7#wp list"}}}
+                "hoverEvent":{"action":"show_text","value":{"text":"列出所有共享中的坐标点\n§7#wp list"}}},
+            {"text":" "},
+            {"text":"[H]","color":"yellow",
+                "clickEvent":{"action":"run_command","value":"#wp help"},
+                "hoverEvent":{"action":"show_text","value":{"text":"查看坐标点的更多帮助\n§7#wp help"}}}
         ],
     "add": [
         {"text":"§d§l【添加坐标点】§r\n添加方式 §7(建议使用共享²)\n"},
@@ -98,7 +102,7 @@ class WaypointDisplay:
             {"text":" §7-§f"},
             {"text":" %s"%dimension["zh_cn"],
              "color":dimension["title_color"]},
-            {"text":" [%s,%s,%s]"%(x,y,z),
+            {"text":" [%s,%s,%s]"%(int(x),int(y),int(z)),
              "color":dimension["pos_color"]},
             {"text":" "},
             {"text":"[+X]",

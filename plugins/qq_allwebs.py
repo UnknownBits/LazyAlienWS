@@ -4,9 +4,9 @@ def webs(content):
     elif content == "#赞助":
         return "https://afdian.net/a/tanh_Heng"
     elif content == "#bluemap":
-        return "http://bluemap.lazyalienserver.top"
+        return "没写"
     elif content == "#status":
-        return "http://status.lazyalienserver.top"
+        return "没写"
 
 def on_qq_message(QQclient, server, message):
     content = message["message"]

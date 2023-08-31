@@ -1,33 +1,16 @@
 from plugins import qq_message_processing as QQmsgprocessing
 from lazyalienws.api.decorator import new_thread
-import json
+from lazyalienws.api.exception import raise_exception
+from lazyalienws.api.typing import WebsocketServerInstance
+from lazyalienws.api.data import Config
+import json, re
 
-CUSTOM = {
-    "Survival": {
-        "color": "e",
-        "zh_cn": "生存"
-    },
-    "Creative": {
-        "color": "a",
-        "zh_cn": "创造"
-    },
-    "Mirror": {
-        "color": "6",
-        "zh_cn": "镜像"
-    },
-    "Void": {
-        "color": "3",
-        "zh_cn": "虚空"
-    },
-    "Velocity": None
-}
+CUSTOM = Config("conf.json",filepath="").read()["websocket"]["transform"]
 
-latest_game_info = {"player":None, "action":None, "client":None}
-
-def on_message(client, server, message):
+def on_message(client, server: WebsocketServerInstance, message):
     custom = CUSTOM[client["name"]]
     if custom:
-        if message.value[-2:] == "游戏": return
+        if re.match(r"[^<>]+(加入|退出)了游戏",message.value) != None: return
         msg = "§8[§%s%s§8]§f %s"%(custom["color"],custom["zh_cn"],message.value)
         server.logger.info(msg, module_name="Message")
         msg = 'tellraw @a {"text":"%s"}'%msg
@@ -38,6 +21,7 @@ def on_message(client, server, message):
 
 @new_thread
 def on_qq_message(QQclient, server, message): # 处理qq信息 主要处理cq码并转发mc
+    # return
     try:
         keys = list(message.keys())
         if "post_type" in keys: # 参见 cqhttp-api 文档
@@ -58,6 +42,4 @@ def on_qq_message(QQclient, server, message): # 处理qq信息 主要处理cq码
             else:
                 message = None
     except Exception as e:
-        if "replace() argument 2 must be str, not None" in str(e) or "'NoneType' object is not subscriptable" in str(e):
-            return 
-        raise e
+        raise_exception(e)
